@@ -3,5 +3,5 @@ output "resource_group" {
 }
 
 output "function_app_default_hostname" {
-  value = azurerm_linux_function_app.func.default_hostname
+  value = azurerm_function_app_flex_consumption.func.default_hostname
 }

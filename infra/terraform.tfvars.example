@@ -6,6 +6,8 @@ key_vault_name      = "kv-qbd-prod"
 app_insights_name   = "appi-qbd-prod"
 function_app_name   = "fa-qbd-prod"
 ig_container_name   = "carousels"
+subscription_id     = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+tenant_id           = "yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy"
 
 # Secret names in Key Vault (actual values are set via az keyvault secret set)
 kv_secret_openai_api_key  = "openai-api-key"

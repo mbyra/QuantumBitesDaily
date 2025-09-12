@@ -22,9 +22,17 @@ resource "azurerm_storage_account" "sa" {
   tags                     = local.tags
 }
 
+# Carousels container
 resource "azurerm_storage_container" "carousels" {
   name                  = var.ig_container_name
-  storage_account_name  = azurerm_storage_account.sa.name
+  storage_account_id    = azurerm_storage_account.sa.id
+  container_access_type = "private"
+}
+
+# Deployments container (for Flex deployment package)
+resource "azurerm_storage_container" "deployments" {
+  name                  = "deploymentpackage"
+  storage_account_id    = azurerm_storage_account.sa.id
   container_access_type = "private"
 }
 
@@ -37,14 +45,14 @@ resource "azurerm_application_insights" "appi" {
 }
 
 resource "azurerm_key_vault" "kv" {
-  name                        = var.key_vault_name
-  location                    = azurerm_resource_group.rg.location
-  resource_group_name         = azurerm_resource_group.rg.name
-  tenant_id                   = data.azurerm_client_config.current.tenant_id
-  sku_name                    = "standard"
-  purge_protection_enabled    = true
-  soft_delete_retention_days  = 7
-  tags                        = local.tags
+  name                       = var.key_vault_name
+  location                   = azurerm_resource_group.rg.location
+  resource_group_name        = azurerm_resource_group.rg.name
+  tenant_id                  = data.azurerm_client_config.current.tenant_id
+  sku_name                   = "standard"
+  purge_protection_enabled   = true
+  soft_delete_retention_days = 7
+  tags                       = local.tags
 }
 
 data "azurerm_client_config" "current" {}
@@ -68,24 +76,23 @@ resource "azurerm_service_plan" "plan" {
   tags                = local.tags
 }
 
-resource "azurerm_linux_function_app" "func" {
-  name                       = var.function_app_name
-  resource_group_name        = azurerm_resource_group.rg.name
-  location                   = azurerm_resource_group.rg.location
-  service_plan_id            = azurerm_service_plan.plan.id
-  storage_account_name       = azurerm_storage_account.sa.name
-  storage_uses_managed_identity = true
+resource "azurerm_function_app_flex_consumption" "func" {
+  name                = var.function_app_name
+  resource_group_name = azurerm_resource_group.rg.name
+  location            = azurerm_resource_group.rg.location
+  service_plan_id     = azurerm_service_plan.plan.id
 
-  identity {
-    type = "SystemAssigned"
-  }
+  # Flex deployment storage (required)
+  storage_container_type      = "blobContainer"
+  storage_container_endpoint  = "${azurerm_storage_account.sa.primary_blob_endpoint}${azurerm_storage_container.deployments.name}"
+  storage_authentication_type = "StorageAccountConnectionString"
+  storage_access_key          = azurerm_storage_account.sa.primary_access_key
+
+  # Flex runtime (this replaces FUNCTIONS_WORKER_RUNTIME)
+  runtime_name    = "python"
+  runtime_version = "3.12"
 
   site_config {
-    application_insights_key = azurerm_application_insights.appi.instrumentation_key
-    application_stack {
-      python_version = "3.12"
-    }
-
     cors {
       allowed_origins = [
         "https://portal.azure.com",
@@ -97,28 +104,21 @@ resource "azurerm_linux_function_app" "func" {
     }
   }
 
+  identity { type = "SystemAssigned" }
+
   app_settings = {
-    "FUNCTIONS_WORKER_RUNTIME"      = "python"
-    "AzureWebJobsFeatureFlags"      = "EnableWorkerIndexing"
-    "SCM_DO_BUILD_DURING_DEPLOYMENT"= "1"
-    "WEBSITE_RUN_FROM_PACKAGE"      = "1"
+    # ❌ DO NOT include FUNCTIONS_WORKER_RUNTIME in Flex
+    # ❌ Prefer to omit WEBSITE_RUN_FROM_PACKAGE on Flex
+
+    AzureWebJobsFeatureFlags = "EnableWorkerIndexing"
 
     # Key Vault references
-    "OPENAI_API_KEY"                = "@Microsoft.KeyVault(VaultName=${azurerm_key_vault.kv.name};SecretName=${var.kv_secret_openai_api_key})"
-    "IG_USER_ID"                    = "@Microsoft.KeyVault(VaultName=${azurerm_key_vault.kv.name};SecretName=${var.kv_secret_ig_user_id})"
-    "IG_ACCESS_TOKEN"               = "@Microsoft.KeyVault(VaultName=${azurerm_key_vault.kv.name};SecretName=${var.kv_secret_ig_access_token})"
+    OPENAI_API_KEY  = "@Microsoft.KeyVault(VaultName=${azurerm_key_vault.kv.name};SecretName=${var.kv_secret_openai_api_key})"
+    IG_USER_ID      = "@Microsoft.KeyVault(VaultName=${azurerm_key_vault.kv.name};SecretName=${var.kv_secret_ig_user_id})"
+    IG_ACCESS_TOKEN = "@Microsoft.KeyVault(VaultName=${azurerm_key_vault.kv.name};SecretName=${var.kv_secret_ig_access_token})"
 
-    # Storage info for code (we use MSI at runtime to access blobs)
-    "QBD_STORAGE_ACCOUNT"           = azurerm_storage_account.sa.name
-    "QBD_CAROUSEL_CONTAINER"        = azurerm_storage_container.carousels.name
-  }
-
-  tags = local.tags
-
-  lifecycle {
-    ignore_changes = [
-      app_settings["WEBSITE_RUN_FROM_PACKAGE"]
-    ]
+    QBD_STORAGE_ACCOUNT    = azurerm_storage_account.sa.name
+    QBD_CAROUSEL_CONTAINER = azurerm_storage_container.carousels.name
   }
 }
 
@@ -126,7 +126,7 @@ resource "azurerm_linux_function_app" "func" {
 resource "azurerm_key_vault_access_policy" "func_kv" {
   key_vault_id = azurerm_key_vault.kv.id
   tenant_id    = data.azurerm_client_config.current.tenant_id
-  object_id    = azurerm_linux_function_app.func.identity[0].principal_id
+  object_id    = azurerm_function_app_flex_consumption.func.identity[0].principal_id
 
   secret_permissions = ["Get", "List"]
 }
@@ -135,11 +135,11 @@ resource "azurerm_key_vault_access_policy" "func_kv" {
 resource "azurerm_role_assignment" "func_storage_role" {
   scope                = azurerm_storage_account.sa.id
   role_definition_name = "Storage Blob Data Contributor"
-  principal_id         = azurerm_linux_function_app.func.identity[0].principal_id
+  principal_id         = azurerm_function_app_flex_consumption.func.identity[0].principal_id
 }
 
 output "function_app_name" {
-  value = azurerm_linux_function_app.func.name
+  value = azurerm_function_app_flex_consumption.func.name
 }
 
 output "key_vault_name" {

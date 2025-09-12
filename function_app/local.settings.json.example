@@ -1,0 +1,14 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "FUNCTIONS_WORKER_RUNTIME": "python",
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+
+    "QBD_STORAGE_ACCOUNT": "yourstorageacct",
+    "QBD_CAROUSEL_CONTAINER": "carousels",
+
+    "OPENAI_API_KEY": "sk-...",
+    "IG_USER_ID": "123456789012345",
+    "IG_ACCESS_TOKEN": "IGQVJ..."
+  }
+}

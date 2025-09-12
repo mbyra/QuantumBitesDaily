@@ -1,0 +1,13 @@
+prefix              = "qbd"
+location            = "francecentral"
+resource_group_name = "rg-qbd-prod"
+storage_account_name = "qbdstorprod001"
+key_vault_name      = "kv-qbd-prod"
+app_insights_name   = "appi-qbd-prod"
+function_app_name   = "fa-qbd-prod"
+ig_container_name   = "carousels"
+
+# Secret names in Key Vault (actual values are set via az keyvault secret set)
+kv_secret_openai_api_key  = "openai-api-key"
+kv_secret_ig_user_id      = "ig-user-id"
+kv_secret_ig_access_token = "ig-access-token"

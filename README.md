@@ -36,3 +36,9 @@ Timer schedules on Linux run in UTC. `0 0 7 * * *` = 07:00 UTC (≈ 09:00 Paris 
 
 ## CORS
 Portal + localhost are whitelisted.
+
+
+
+
+TODO:
+* seed kv automatically while creating the infra 

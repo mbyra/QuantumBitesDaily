@@ -67,3 +67,19 @@ variable "subscription_id" {
 variable "tenant_id" {
   type = string
 }
+
+variable "openai_api_key" {
+  type      = string
+  sensitive = true
+  default   = ""
+}
+variable "ig_user_id" {
+  type      = string
+  sensitive = true
+  default   = ""
+}
+variable "ig_access_token" {
+  type      = string
+  sensitive = true
+  default   = ""
+}

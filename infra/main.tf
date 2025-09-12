@@ -42,6 +42,7 @@ resource "azurerm_application_insights" "appi" {
   resource_group_name = azurerm_resource_group.rg.name
   application_type    = "web"
   tags                = local.tags
+  # (optional) workspace_id = azurerm_log_analytics_workspace.law.id
 }
 
 resource "azurerm_key_vault" "kv" {
@@ -102,6 +103,11 @@ resource "azurerm_function_app_flex_consumption" "func" {
       ]
       support_credentials = false
     }
+
+    # ✅ App Insights wiring goes here for Flex
+    application_insights_connection_string = azurerm_application_insights.appi.connection_string
+    # or, alternatively:
+    # application_insights_key = azurerm_application_insights.appi.instrumentation_key
   }
 
   identity { type = "SystemAssigned" }

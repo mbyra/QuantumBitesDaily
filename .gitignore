@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+.venv/
+.env
+*.egg-info/
+pip-wheel-metadata/
+dist/
+build/
+
+# Azure Functions
+local.settings.json
+
+# VS Code / IDE
+.vscode/
+.idea/
+*.swp
+
+# Terraform
+*.tfstate
+*.tfstate.*
+crash.log
+*.tfvars
+.terraform/
+.terraform.lock.hcl
+
+# Archives
+*.zip
+*.tar.gz
